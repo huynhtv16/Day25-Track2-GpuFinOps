@@ -32,3 +32,11 @@ def test_spot_checkpoint_saves():
     res = pricing.spot_checkpoint_cost(100, 1.5, 2.5)
     assert res["spot_cost"] < res["on_demand_cost"]
     assert res["savings_pct"] > 0
+
+
+def test_cache_is_worth_it_has_break_even_gate():
+    one_read = pricing.cache_is_worth_it(1000, expected_reads=1, price_in_per_m=3.0)
+    no_reads = pricing.cache_is_worth_it(1000, expected_reads=0, price_in_per_m=3.0)
+    assert one_read["worth_it"] is True
+    assert no_reads["worth_it"] is False
+    assert one_read["break_even_reads"] > 0

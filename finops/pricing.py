@@ -52,6 +52,36 @@ def discount_stack(
     return cache_mult * batch_mult
 
 
+def cache_is_worth_it(
+    cacheable_input_tok: int,
+    expected_reads: float,
+    price_in_per_m: float,
+    cache_write_multiplier: float = 1.25,
+    cache_read_multiplier: float = 0.10,
+) -> dict:
+    """Decide whether prompt caching beats paying uncached input each time.
+
+    Some providers charge a small premium to create/write cache entries, while
+    cache reads are heavily discounted. The cache is worthwhile when expected
+    read savings exceed the write premium.
+    """
+    tokens = max(0, cacheable_input_tok)
+    reads = max(0.0, expected_reads)
+    base = (tokens / 1e6) * price_in_per_m
+    write_premium = base * max(0.0, cache_write_multiplier - 1.0)
+    read_savings = base * reads * max(0.0, 1.0 - cache_read_multiplier)
+    net_savings = read_savings - write_premium
+    return {
+        "worth_it": net_savings > 0,
+        "write_premium_usd": round(write_premium, 6),
+        "read_savings_usd": round(read_savings, 6),
+        "net_savings_usd": round(net_savings, 6),
+        "break_even_reads": round(
+            write_premium / (base * max(0.0, 1.0 - cache_read_multiplier)), 3
+        ) if base > 0 and cache_read_multiplier < 1.0 else 0.0,
+    }
+
+
 def break_even_utilization(discount_frac: float) -> float:
     """Utilization at which a commitment pays off ~= 1 - discount.
 

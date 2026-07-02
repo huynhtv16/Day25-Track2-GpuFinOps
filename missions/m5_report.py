@@ -7,7 +7,7 @@ import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 import os
 from missions._common import num, catalog_by_type, ROOT
-from finops import report, sustainability
+from finops import pricing, report, sustainability
 from missions import m1_efficiency_audit, m2_inference_levers, m3_purchasing
 
 DAYS = 30
@@ -51,8 +51,25 @@ def run(verbose: bool = True) -> dict:
         "carbon_g": sustainability.carbon_g(wh, "us-east-1"),
         "best_region": min(sustainability.REGION_CARBON, key=sustainability.REGION_CARBON.get),
     }
+    cache_gate = pricing.cache_is_worth_it(
+        cacheable_input_tok=1_000,
+        expected_reads=1,
+        price_in_per_m=m2_inference_levers.MODEL_PRICES["large"][0],
+    )
+    extensions = {
+        "cache_economics": {
+            "candidates": r2["cache_candidates"],
+            "enabled": r2["cache_enabled"],
+            "break_even_reads": cache_gate["break_even_reads"],
+        },
+        "reasoning_budget": {
+            "requests": r2["reasoning_requests"],
+            "daily_cost": r2["reasoning_daily"],
+            "daily_wh": r2["reasoning_wh_daily"],
+        },
+    }
 
-    md = report.build_report(baseline, optimized, levers, sustainability=sust)
+    md = report.build_report(baseline, optimized, levers, sustainability=sust, extensions=extensions)
     out_md = os.path.join(ROOT, "outputs", "report.md")
     os.makedirs(os.path.dirname(out_md), exist_ok=True)
     with open(out_md, "w") as f:

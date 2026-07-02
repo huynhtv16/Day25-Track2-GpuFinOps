@@ -3,7 +3,8 @@ from __future__ import annotations
 
 
 def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
-                 sustainability: dict | None = None, period: str = "monthly") -> str:
+                 sustainability: dict | None = None, period: str = "monthly",
+                 extensions: dict | None = None) -> str:
     """Return a markdown cost-optimization report."""
     savings = baseline_usd - optimized_usd
     pct = (savings / baseline_usd * 100.0) if baseline_usd > 0 else 0.0
@@ -31,6 +32,32 @@ def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
             f"- Carbon per query: {sustainability.get('carbon_g', 0):.3f} gCO2e",
             f"- Cheapest+cleanest region: {sustainability.get('best_region', 'n/a')}",
         ]
+    if extensions:
+        lines += [
+            "",
+            "## Your Turn Extensions",
+            "",
+        ]
+        cache = extensions.get("cache_economics")
+        if cache:
+            lines += [
+                "### Cache economics",
+                "",
+                f"- Cache candidates evaluated: {cache.get('candidates', 0):,}",
+                f"- Prompts passing break-even gate: {cache.get('enabled', 0):,}",
+                f"- Break-even reads per cached prompt: {cache.get('break_even_reads', 0):.2f}",
+            ]
+        reasoning = extensions.get("reasoning_budget")
+        if reasoning:
+            lines += [
+                "",
+                "### Reasoning budget",
+                "",
+                f"- Reasoning requests: {reasoning.get('requests', 0):,}",
+                f"- Reasoning cost: ${reasoning.get('daily_cost', 0):,.2f}/day",
+                f"- Reasoning energy: {reasoning.get('daily_wh', 0):,.0f} Wh/day",
+                f"- Policy: route reasoning only for eval, complex planning, and escalations; default simple RAG/search to small tier.",
+            ]
     lines += ["", "_Figures are June-2026 as-of snapshots; re-baseline before acting._"]
     return "\n".join(lines)
 
